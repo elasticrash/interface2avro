@@ -31,6 +31,12 @@ fn main() {
     .to_owned();
 
     let schemas = get_schema(code);
+    let candidate_schema = merger(schemas);
+
+    println!("{}", json!(candidate_schema));
+}
+
+fn merger(schemas: Vec<Value>) -> Value {
     let mut candidate_schema = schemas[0].clone();
 
     let base_types = vec!["string", "number", "null", "Date", "boolean"];
@@ -50,7 +56,7 @@ fn main() {
         }
     }
 
-    println!("{}", json!(candidate_schema));
+    candidate_schema
 }
 
 fn get_schema(code: String) -> Vec<Value> {
@@ -139,7 +145,7 @@ fn get_prop_type(c_node: &tree_sitter::Node, code: String) -> Option<Value> {
 
 #[cfg(test)]
 mod tests {
-    use crate::get_schema;
+    use crate::{get_schema, merger};
 
     #[test]
     fn test_basic_model() {
@@ -150,14 +156,16 @@ mod tests {
         }
         "#;
 
-        let schema = get_schema(code.to_string());
-        assert_eq!(schema[0]["type"], "Record");
-        assert_eq!(schema[0]["name"], "test");
-        assert_eq!(schema[0]["fields"][0]["name"], "age");
-        assert_eq!(schema[0]["fields"][0]["type"], "number");
-        assert_eq!(schema[0]["fields"][1]["name"], "location");
-        assert_eq!(schema[0]["fields"][1]["type"][0], "string");
-        assert_eq!(schema[0]["fields"][1]["type"][1], "null");
+        let schemas = get_schema(code.to_string());
+        let schema = merger(schemas);
+
+        assert_eq!(schema["type"], "Record");
+        assert_eq!(schema["name"], "Person");
+        assert_eq!(schema["fields"][0]["name"], "age");
+        assert_eq!(schema["fields"][0]["type"], "number");
+        assert_eq!(schema["fields"][1]["name"], "location");
+        assert_eq!(schema["fields"][1]["type"][0], "string");
+        assert_eq!(schema["fields"][1]["type"][1], "null");
     }
 
     #[test]
@@ -165,22 +173,26 @@ mod tests {
         let code = r#"
         interface Person {
             age: number;
-            location: {
-                city: string;
-                state: string;
-            };
+            location: Location;
+        }
+
+        interface Location {
+            city: string;
+            state: string;
         }
         "#;
 
-        let schema = get_schema(code.to_string());
-        assert_eq!(schema[0]["type"], "Record");
-        assert_eq!(schema[0]["name"], "test");
-        assert_eq!(schema[0]["fields"][0]["name"], "age");
-        assert_eq!(schema[0]["fields"][0]["type"], "number");
-        assert_eq!(schema[0]["fields"][1]["name"], "location");
-        assert_eq!(schema[0]["fields"][1]["type"][0]["name"], "city");
-        assert_eq!(schema[0]["fields"][1]["type"][0]["type"], "string");
-        assert_eq!(schema[0]["fields"][1]["type"][1]["name"], "state");
-        assert_eq!(schema[0]["fields"][1]["type"][1]["type"], "string");
+        let schemas = get_schema(code.to_string());
+        let schema = merger(schemas);
+
+        assert_eq!(schema["type"], "Record");
+        assert_eq!(schema["name"], "Person");
+        assert_eq!(schema["fields"][0]["name"], "age");
+        assert_eq!(schema["fields"][0]["type"], "number");
+        assert_eq!(schema["fields"][1]["name"], "Location");
+        assert_eq!(schema["fields"][1]["fields"][0]["name"], "city");
+        assert_eq!(schema["fields"][1]["fields"][0]["type"], "string");
+        assert_eq!(schema["fields"][1]["fields"][1]["name"], "state");
+        assert_eq!(schema["fields"][1]["fields"][1]["type"], "string");
     }
 }
