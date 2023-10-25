@@ -39,19 +39,13 @@ fn main() {
 fn merger(schemas: Vec<Value>) -> Value {
     let mut candidate_schema = schemas[0].clone();
 
-    let base_types = vec!["string", "number", "null", "Date", "boolean"];
+    let base_types = ["string", "number", "null", "Date", "boolean"];
 
     for (i, entry) in schemas[0]["fields"].as_array().unwrap().iter().enumerate() {
-        if base_types
-            .iter()
-            .find(|&x| {
-                return **x == entry["type"];
-            })
-            .is_none()
-        {
+        if !base_types.iter().any(|&x| *x == entry["type"]) {
             let sub_schema = schemas.iter().find(|&x| x["name"] == entry["type"]);
-            if sub_schema.is_some() {
-                candidate_schema["fields"].as_array_mut().unwrap()[i] = sub_schema.unwrap().clone();
+            if let Some(value) = sub_schema {
+                candidate_schema["fields"].as_array_mut().unwrap()[i] = value.clone();
             }
         }
     }
@@ -77,7 +71,7 @@ fn get_schema(code: String) -> Vec<Value> {
             let mut interface = node.walk();
 
             node.children(&mut interface).for_each(|node| {
-                let iname = node.utf8_text(&code.as_bytes()).unwrap();
+                let iname = node.utf8_text(code.as_bytes()).unwrap();
 
                 match node.kind() {
                     "type_identifier" => {
@@ -88,8 +82,8 @@ fn get_schema(code: String) -> Vec<Value> {
                         node.children(&mut oter).for_each(|node| {
                             let prop = get_prop_type(&node, code.clone());
 
-                            if prop.is_some() {
-                                fields.push(prop.unwrap());
+                            if let Some(value) = prop {
+                                fields.push(value);
                             }
                         });
                     }
@@ -112,7 +106,7 @@ fn get_prop_type(c_node: &tree_sitter::Node, code: String) -> Option<Value> {
 
     let mut cursor = c_node.walk();
     c_node.children(&mut cursor).for_each(|node| {
-        let propd = node.utf8_text(&code.as_bytes()).unwrap();
+        let propd = node.utf8_text(code.as_bytes()).unwrap();
         if propd.chars().collect::<Vec<char>>()[0] == ':' {
             let mut subtype = node.walk();
             node.children(&mut subtype).for_each(|node| {
